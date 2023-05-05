@@ -1,0 +1,69 @@
+#  stack syntax
+#  docker stack deploy -c <(docker-compose config) task-shop
+version: "3.7"
+services:
+  zookeeper:
+    container_name: task-zookeeper
+    image: wurstmeister/zookeeper
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "${ZOOKEEPER_PUBLISH_PORT}:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PUBLISH_PORT}
+
+  kafka:
+    container_name: task-kafka
+    image: wurstmeister/kafka:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - target: ${KAFKA_OUTSIDE}
+        published: ${KAFKA_OUTSIDE}
+        protocol: tcp
+        mode: host
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:${KAFKA_INSIDE},OUTSIDE://${BOOTSTRAP_SERVIERS}
+      KAFKA_LISTENERS: INSIDE://:${KAFKA_INSIDE},OUTSIDE://:${KAFKA_OUTSIDE}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./kafka/logs:/kafka
+      # - ./kafka/config:/opt/kafka/config
+  
+  logstash:
+    container_name: task-logstash
+    image: docker.elastic.co/logstash/logstash:7.12.0
+    configs:
+      - source: logstash_config
+        target: /usr/share/logstash/config/logstash.yml:rw
+      - source: log4j2_config
+        target: /usr/share/logstash/config/log4j2.properties:rw
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      BOOTSTRAP_SERVIERS: ${BOOTSTRAP_SERVIERS}
+      XPACK_MONITORING_ENABLED: ${XPACK_MONITORING_ENABLED}
+      CONFIG_RELOAD_AUTOMATIC: ${CONFIG_RELOAD_AUTOMATIC}
+      TASK_GROUP_ID: ${TASK_GROUP_ID}
+      TASK_TOPIC: ${TASK_TOPIC}
+      TASK_SERVICE: ${TASK_SERVICE}
+    volumes:
+      - ./logstash/conf.d:/usr/share/logstash/pipeline
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    depends_on: 
+      - kafka
+
+configs:
+  logstash_config:
+    file: ./logstash/logstash.yml
+  log4j2_config:
+    file: ./logstash/log4j2.properties

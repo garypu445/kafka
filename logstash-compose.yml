@@ -1,0 +1,30 @@
+# docker-compose.yml
+version: '3.7'
+services:
+    logstash:
+        image: docker.elastic.co/logstash/logstash:7.12.0
+        container_name: kafka-logstash
+        configs:
+          - source: logstash_config
+            target: /usr/share/logstash/config/logstash.yml:rw
+          - source: log4j2_config
+            target: /usr/share/logstash/config/log4j2.properties:rw
+        environment:
+          LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+          BOOTSTRAP_SERVIERS: ${BOOTSTRAP_SERVIERS}
+          XPACK_MONITORING_ENABLED: ${XPACK_MONITORING_ENABLED}
+          CONFIG_RELOAD_AUTOMATIC: ${CONFIG_RELOAD_AUTOMATIC}
+          TASK_SERVICE: ${TASK_SERVICE}
+        volumes:
+          - ./logstash/conf.d:/usr/share/logstash/pipeline
+        deploy:
+          replicas: 1
+          restart_policy:
+            condition: on-failure
+        depends_on: 
+          - kafka
+configs:
+  logstash_config:
+    file: ./logstash/logstash.yml
+  log4j2_config:
+    file: ./logstash/log4j2.properties

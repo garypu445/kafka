@@ -1,0 +1,12 @@
+# docker-compose.yml
+# python-compose.yml
+__pycache__/
+kafka/logs/
+python/logs/
+*.log
+*.pot
+*.pyc
+*.pem
+.env
+.venv
+.vscode

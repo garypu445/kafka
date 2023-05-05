@@ -1,0 +1,5 @@
+config.reload.automatic: true
+path.data: /var/lib/logstash
+path.logs: /var/log/logstash
+pipeline.workers: 2
+xpack.monitoring.enabled: false
